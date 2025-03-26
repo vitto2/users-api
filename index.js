@@ -37,80 +37,68 @@ let users = [
 ];
 
 app.get("/users", (req, res) => {
-  res.status(200).json({ messsage: users });
+  res.status(200).json({ users });
 });
 
-app.post("/users/create", (req, res) => {
+const userExists = (req, res, next) => {
+  const { user, email } = req.body;
+  const findUser = users.some((userName) => userName.user == user);
+  const findUserEmail = users.some((userName) => userName.email == email);
+
+  if (findUser || findUserEmail) {
+    return res.status(404).json({
+      message:
+        "Já existe um usuário com este userName ou e-mail. Tente novamente.",
+    });
+  }
+
+  next();
+};
+
+const findUserRegister = (req, res, next) => {
+  const { id } = req.params;
+  const indexUser = users.findIndex((userItem) => userItem.id == id);
+
+  if (indexUser == -1) {
+    return res.status(404).json({ message: "user not found" });
+  }
+
+  req.indexUser = indexUser;
+
+  next();
+};
+
+app.post("/user/register", userExists, (req, res) => {
+  const { user, email, password } = req.body;
+  const userObj = { id: uuidv4(), user, password, email };
+
+  users.push(userObj);
+
+  res.status(200).json({ message: "User created successfully" });
+});
+
+app.put("/user/update-user/:id", userExists, findUserRegister, (req, res) => {
   const { user, password, email } = req.body;
-  const userJson = {
-    id: uuidv4(),
-    user,
-    password,
-    email,
-  };
+  const indexUser = req.indexUser;
 
-  console.log(user, password, email);
-  if (user && password && !userExists(email)) {
-    users.push(userJson);
-    return res
-      .status(201)
-      .json({ message: "user created successfully", userJson, users });
-  } else {
-    return res.status(200).json({
-      message:
-        "Não foi possível criar o seu usuário. Verifique as informações e tente novamente.",
-    });
-  }
+  users[indexUser].email = email;
+  users[indexUser].password = password;
+  users[indexUser].user = user;
+
+  res.status(200).json({ user: users[indexUser] });
 });
 
-app.put("/users/change", (req, res) => {
-  let { user, password, email } = req.body;
+app.delete("/users/delete/:id", findUserRegister, (req, res) => {
+  const indexUser = req.indexUser;
 
-  if (password && email && user) {
-    users.filter((userItem) => {
-      if (userItem.user == user) {
-        userItem.email = email;
-        userItem.password = password;
-      }
-    });
+  users.splice(indexUser, 1);
 
-    return res.status(200).json({
-      message: "Informações atualizadas com sucesso!",
-      password,
-      email,
-    });
-  } else {
-    return res.status(200).json({
-      message:
-        "Não foi possível concluir a operação. Verifique as informações e tente novamente.",
-    });
-  }
+  res.status(200).json({ message: "user deleted" });
 });
-
-app.delete("/users/delete", (req, res) => {
-  const { user } = req.body;
-
-  const userExists = users.some((userItem) => userItem.user == user);
-
-  console.log(userExists);
-  if (userExists) {
-    users = users.filter(userItem => userItem.user !== user);
-
-    return res.status(200).json({ message: "Usuário excluido com sucesso!", users });
-  }
-
-  return res
-    .status(200)
-    .json({ message: "Nenhum usuário foi encontrado. Tente novamente." });
-});
-
-function userExists(email) {
-  return users.some((user) => user.email == email);
-}
 
 app.listen(4000);
 
-// GET => Buscar informação no back-end
-// POST => Criar informação no back-end
-// PUT / PATCH => Alterar/Atualizar informação no back-end
+// GET => Buscar informação no back-end - OK
+// POST => Criar informação no back-end - OK
+// PUT / PATCH => Alterar/Atualizar informação no back-end - OK
 // DELETE => Deletar informação no back-end
